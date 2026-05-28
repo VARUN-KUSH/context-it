@@ -32,11 +32,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
+    <div className="h-screen overflow-y-auto bg-[#0f0f0f] flex items-center justify-center">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <img src="/logo.svg" alt="context-it logo" className="w-12 h-12" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" className="w-12 h-12 rounded-xl" aria-hidden="true">
+              <defs>
+                <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#F5A8C5"/>
+                  <stop offset="55%" stopColor="#D294DC"/>
+                  <stop offset="100%" stopColor="#B568E5"/>
+                </linearGradient>
+              </defs>
+              <rect width="320" height="320" rx="72" fill="url(#lg)"/>
+              <circle cx="82" cy="98" r="38" fill="#1A1A1A"/>
+              <circle cx="238" cy="98" r="38" fill="#1A1A1A"/>
+              <circle cx="82" cy="103" r="16" fill="#F5B8CC"/>
+              <circle cx="238" cy="103" r="16" fill="#F5B8CC"/>
+              <circle cx="160" cy="172" r="108" fill="#FAFAFA"/>
+              <ellipse cx="123" cy="158" rx="24" ry="32" fill="#1A1A1A" transform="rotate(20 123 158)"/>
+              <ellipse cx="197" cy="158" rx="24" ry="32" fill="#1A1A1A" transform="rotate(-20 197 158)"/>
+              <circle cx="128" cy="157" r="8.5" fill="#FAFAFA"/>
+              <circle cx="192" cy="157" r="8.5" fill="#FAFAFA"/>
+              <circle cx="129" cy="158" r="5" fill="#1A1A1A"/>
+              <circle cx="191" cy="158" r="5" fill="#1A1A1A"/>
+              <circle cx="130.5" cy="156" r="1.8" fill="#FAFAFA"/>
+              <circle cx="192.5" cy="156" r="1.8" fill="#FAFAFA"/>
+              <ellipse cx="160" cy="202" rx="11" ry="7.5" fill="#1A1A1A"/>
+              <path d="M160 210 Q160 221 150 222" stroke="#1A1A1A" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
+              <path d="M160 210 Q160 221 170 222" stroke="#1A1A1A" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
+            </svg>
             <h1 className="text-3xl font-bold text-white">context-it</h1>
           </div>
           <p className="text-gray-500 text-sm">Creator relationship management</p>

@@ -14,8 +14,15 @@ function getBaseURL(): string {
 const api = axios.create({ baseURL: getBaseURL() })
 
 // Re-read on every request so a URL change in Settings takes effect immediately.
+// Also inject the ngrok bypass header so ngrok never shows its interstitial page.
 api.interceptors.request.use((config) => {
-  if (isElectron) config.baseURL = getBaseURL()
+  if (isElectron) {
+    config.baseURL = getBaseURL()
+    const base = config.baseURL || ''
+    if (base.includes('ngrok')) {
+      config.headers['ngrok-skip-browser-warning'] = 'true'
+    }
+  }
   return config
 })
 

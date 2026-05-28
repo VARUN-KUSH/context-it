@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, Menu, nativeImage, shell, session } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
 import path from 'path'
 
@@ -142,6 +142,15 @@ function buildMenu(win: BrowserWindow): void {
 }
 
 app.whenReady().then(() => {
+  // Inject ngrok-skip-browser-warning on every request/websocket so ngrok
+  // never shows its interstitial HTML page instead of returning JSON/WS data.
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (details.url.includes('ngrok')) {
+      details.requestHeaders['ngrok-skip-browser-warning'] = 'true'
+    }
+    callback({ requestHeaders: details.requestHeaders })
+  })
+
   // Set dock icon explicitly — required in dev mode since electron-builder
   // only injects the icon at package time
   if (process.platform === 'darwin') {

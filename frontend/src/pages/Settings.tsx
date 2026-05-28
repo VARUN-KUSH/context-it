@@ -61,16 +61,24 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="h-screen overflow-y-auto bg-[#0a0a0a] text-white">
       <div className="max-w-2xl mx-auto px-6 py-8">
-        {/* Back */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-300 mb-8 transition-colors text-sm"
-        >
-          <ArrowLeft size={14} />
-          Back to CRM
-        </button>
+        {/* Back + Logout row */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors text-sm"
+          >
+            <ArrowLeft size={14} />
+            Back to CRM
+          </button>
+          <button
+            onClick={handleLogout}
+            className="border border-red-900 text-red-400 hover:bg-red-950 px-4 py-1.5 rounded-lg text-sm transition-colors"
+          >
+            Log out
+          </button>
+        </div>
 
         <h1 className="text-2xl font-bold mb-8">Settings</h1>
 
@@ -180,16 +188,6 @@ export default function SettingsPage() {
           </section>
         )}
 
-        {/* Logout */}
-        <section className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-1">Account</h2>
-          <button
-            onClick={handleLogout}
-            className="mt-2 border border-red-900 text-red-400 hover:bg-red-950 px-5 py-2 rounded-lg text-sm transition-colors"
-          >
-            Log out
-          </button>
-        </section>
       </div>
     </div>
   )
