@@ -1,0 +1,25 @@
+{
+  "name": "context-it-desktop",
+  "version": "1.0.0",
+  "description": "context-it – desktop client",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail -n vite,electron -c cyan,magenta \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "npm --prefix ../frontend run dev",
+    "dev:electron": "wait-on http://localhost:5173 && tsc && cross-env NODE_ENV=development electron .",
+    "build:frontend": "cd ../frontend && npx tsc --noEmit && npx vite build --base ./",
+    "build": "npm run build:frontend && tsc && electron-builder",
+    "start:prod": "tsc && cross-env NODE_ENV=production electron .",
+    "compile": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^32.0.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.0",
+    "wait-on": "^7.2.0"
+  }
+}

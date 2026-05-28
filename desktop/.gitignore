@@ -1,0 +1,10 @@
+node_modules
+
+dist
+release
+
+desktop/release
+
+*.dmg
+*.exe
+*.blockmap

@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f0f;
+  color: #f1f1f1;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+/* Typing bubble bounce dots */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30%            { transform: translateY(-5px); opacity: 1; }
+}
+
+/* Suggestion card hover */
+.suggestion-card {
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.suggestion-card:hover {
+  transform: translateY(-1px);
+  border-color: #ec4899 !important;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.2);
+}
+.suggestion-card:active {
+  transform: translateY(0);
+}

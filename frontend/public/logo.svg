@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="Panda CRM logo">
+  <defs>
+    <linearGradient id="pinkPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5A8C5"/>
+      <stop offset="55%" stop-color="#D294DC"/>
+      <stop offset="100%" stop-color="#B568E5"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="320" height="320" rx="72" fill="url(#pinkPurple)"/>
+
+  <circle cx="82" cy="98" r="38" fill="#1A1A1A"/>
+  <circle cx="238" cy="98" r="38" fill="#1A1A1A"/>
+  <circle cx="82" cy="103" r="16" fill="#F5B8CC"/>
+  <circle cx="238" cy="103" r="16" fill="#F5B8CC"/>
+
+  <circle cx="160" cy="172" r="108" fill="#FAFAFA"/>
+
+  <ellipse cx="123" cy="158" rx="24" ry="32" fill="#1A1A1A" transform="rotate(20 123 158)"/>
+  <ellipse cx="197" cy="158" rx="24" ry="32" fill="#1A1A1A" transform="rotate(-20 197 158)"/>
+
+  <circle cx="128" cy="157" r="8.5" fill="#FAFAFA"/>
+  <circle cx="192" cy="157" r="8.5" fill="#FAFAFA"/>
+  <circle cx="129" cy="158" r="5" fill="#1A1A1A"/>
+  <circle cx="191" cy="158" r="5" fill="#1A1A1A"/>
+  <circle cx="130.5" cy="156" r="1.8" fill="#FAFAFA"/>
+  <circle cx="192.5" cy="156" r="1.8" fill="#FAFAFA"/>
+
+  <ellipse cx="160" cy="202" rx="11" ry="7.5" fill="#1A1A1A"/>
+
+  <path d="M160 210 Q160 221 150 222" stroke="#1A1A1A" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+  <path d="M160 210 Q160 221 170 222" stroke="#1A1A1A" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+</svg>
