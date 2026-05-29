@@ -96,6 +96,7 @@ class FansResponse(BaseModel):
     fans: List[FanOut]
     has_more: bool
     offset: int
+    next_cursor: Optional[str] = None
 
 
 class FanNotesUpdate(BaseModel):
@@ -128,6 +129,7 @@ class MessagesResponse(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str
     price: Optional[float] = None
+    media_ids: Optional[List[int]] = None
 
 
 # ── Suggestions ───────────────────────────────────────────────────────────────

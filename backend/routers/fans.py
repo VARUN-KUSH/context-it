@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, and_, cast, BigInteger
 from sqlalchemy.orm import selectinload
 from database.database import get_db
 from database.models import Fan, OFAccount, Tag, User, Suggestion, SuccessfulMessage, Message
@@ -13,6 +13,7 @@ from services.ai_service import generate_fan_summary, generate_suggestions
 from services import onlyfans_service as of_api
 from datetime import datetime, timezone
 from typing import List, Optional
+import base64, json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,27 @@ async def _get_fan_or_404(fan_id: str, db: AsyncSession) -> Fan:
     return fan
 
 
+def _encode_cursor(last_message_at: datetime | None, fan_id: str) -> str:
+    payload = {
+        "t": last_message_at.isoformat() if last_message_at else None,
+        "id": fan_id,
+    }
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime | None, str]:
+    payload = json.loads(base64.urlsafe_b64decode(cursor.encode()))
+    t = datetime.fromisoformat(payload["t"]) if payload.get("t") else None
+    return t, str(payload["id"])
+
+
 @router.get("/", response_model=FansResponse)
 async def list_fans(
     account_id: int = Query(...),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=50),
     search: Optional[str] = Query(None),
+    cursor: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -48,8 +64,6 @@ async def list_fans(
     if not account:
         raise HTTPException(status_code=403, detail="Account not found")
 
-    # Serve fans from the local DB (populated by sync).
-    # SQL offset/limit gives us correct infinite-scroll pagination.
     query = (
         select(Fan)
         .options(selectinload(Fan.tags))
@@ -62,19 +76,42 @@ async def list_fans(
             Fan.display_name.ilike(pattern) | Fan.username.ilike(pattern)
         )
 
-    total_result = await db.execute(select(func.count()).select_from(query.subquery()))
-    total = total_result.scalar() or 0
+    # Cursor-based pagination — stable even when last_message_at changes mid-scroll.
+    # Cursor encodes (last_message_at, fan_id) of the last item on the previous page.
+    # Falls back to offset for the first page or when no cursor is supplied.
+    if cursor:
+        try:
+            cur_time, cur_id = _decode_cursor(cursor)
+            cur_id_int = int(cur_id)
+            fan_id_col = cast(Fan.id, BigInteger)
+            if cur_time is not None:
+                query = query.where(
+                    or_(
+                        Fan.last_message_at < cur_time,
+                        and_(Fan.last_message_at == cur_time, fan_id_col > cur_id_int),
+                        Fan.last_message_at.is_(None),
+                    )
+                )
+            else:
+                # We're already in the NULL section
+                query = query.where(
+                    and_(Fan.last_message_at.is_(None), fan_id_col > cur_id_int)
+                )
+        except Exception:
+            query = query.offset(offset)
+    elif offset:
+        query = query.offset(offset)
 
     query = (
         query
-        .order_by(Fan.subscribed_at.desc().nullslast(), Fan.id)
-        .offset(offset)
+        .order_by(Fan.last_message_at.desc().nullslast(), Fan.subscribed_at.desc().nullslast(), Fan.id)
         .limit(limit)
     )
     result = await db.execute(query)
     fans_db = result.scalars().all()
 
-    has_more = (offset + len(fans_db)) < total
+    has_more = len(fans_db) == limit
+    next_cursor = _encode_cursor(fans_db[-1].last_message_at, fans_db[-1].id) if has_more and fans_db else None
 
     # Batch-fetch last message for each fan in one query
     last_msgs: dict[str, Message] = {}
@@ -117,7 +154,7 @@ async def list_fans(
         for fan in fans_db
     ]
 
-    return FansResponse(fans=fans_out, has_more=has_more, offset=offset)
+    return FansResponse(fans=fans_out, has_more=has_more, offset=offset, next_cursor=next_cursor)
 
 
 @router.get("/chats")

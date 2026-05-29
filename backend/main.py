@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database.database import init_db, AsyncSessionLocal
 from database.models import User
-from routers import auth, accounts, fans, messages, suggestions, webhooks
+from routers import auth, accounts, fans, messages, suggestions, webhooks, vault
 from services.ws_manager import manager as ws_manager
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -38,6 +38,7 @@ app.include_router(fans.router)
 app.include_router(messages.router)
 app.include_router(suggestions.router)
 app.include_router(webhooks.router)
+app.include_router(vault.router)
 
 
 @app.get("/health")

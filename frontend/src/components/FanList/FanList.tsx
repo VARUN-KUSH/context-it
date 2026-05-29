@@ -28,12 +28,13 @@ interface ChatData {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function extractPage(raw: unknown): { fans: Fan[]; hasMore: boolean } {
+function extractPage(raw: unknown): { fans: Fan[]; hasMore: boolean; nextCursor?: string } {
   if (Array.isArray(raw)) return { fans: raw as Fan[], hasMore: false }
   const r = raw as Record<string, unknown>
   const fans = Array.isArray(r.fans) ? (r.fans as Fan[]) : []
   const hasMore = Boolean(r.has_more)
-  return { fans, hasMore }
+  const nextCursor = typeof r.next_cursor === 'string' ? r.next_cursor : undefined
+  return { fans, hasMore, nextCursor }
 }
 
 function formatSpend(amount: number): string {
@@ -69,6 +70,7 @@ export default function FanList() {
   const loadingMoreRef = useRef(false)
   const hasMoreRef     = useRef(false)
   const offsetRef      = useRef(0)
+  const cursorRef      = useRef<string | undefined>(undefined)
   const searchRef      = useRef('')
   const loadMoreFnRef  = useRef<() => void>(() => {})
   const sentinelRef    = useRef<HTMLDivElement>(null)
@@ -106,16 +108,18 @@ export default function FanList() {
     setHasMore(false)
     setError(null)
     offsetRef.current = 0
+    cursorRef.current = undefined
     try {
       const res = await getFans(activeAccountId, {
         search: searchValue || undefined,
         offset: 0,
         limit: PAGE_SIZE,
       })
-      const { fans: list, hasMore: more } = extractPage(res.data)
+      const { fans: list, hasMore: more, nextCursor } = extractPage(res.data)
       setFans(list)
       setHasMore(more)
       offsetRef.current = list.length
+      cursorRef.current = nextCursor
     } catch (err: any) {
       console.error('[FanList load]', err)
       setError(err?.response?.data?.detail || err?.message || 'Failed to load fans')
@@ -135,11 +139,17 @@ export default function FanList() {
         search: searchRef.current || undefined,
         offset: offsetRef.current,
         limit: PAGE_SIZE,
+        ...(cursorRef.current ? { cursor: cursorRef.current } : {}),
       })
-      const { fans: list, hasMore: more } = extractPage(res.data)
-      setFans(prev => [...prev, ...list])
+      const { fans: list, hasMore: more, nextCursor } = extractPage(res.data)
+      // Deduplicate: skip any fan already in the list (guards against offset drift)
+      setFans(prev => {
+        const seen = new Set(prev.map(f => f.id))
+        return [...prev, ...list.filter(f => !seen.has(f.id))]
+      })
       setHasMore(more)
       offsetRef.current += list.length
+      cursorRef.current = nextCursor
     } catch (err) {
       console.error('[FanList loadMore]', err)
     } finally {

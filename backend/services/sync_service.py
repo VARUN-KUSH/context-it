@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 async def sync_account(account: OFAccount, db: AsyncSession):
-    """Full sync for one account: fans + messages."""
+    """Full sync for one account: fans then all messages."""
     logger.info(f"Starting sync for account {account.username} ({account.of_user_id})")
     try:
         await _sync_fans(account, db)
+        await sync_all_messages(account, db)
         await db.execute(
             update(OFAccount)
             .where(OFAccount.id == account.id)
@@ -140,7 +141,6 @@ async def _sync_fans(account: OFAccount, db: AsyncSession):
                 fan.is_subscribed = True
 
             await db.flush()
-            # Messages are loaded lazily when a chat is opened — not during bulk sync
 
         if not has_more:
             break
@@ -148,13 +148,22 @@ async def _sync_fans(account: OFAccount, db: AsyncSession):
         await asyncio.sleep(1.0)
 
 
-async def _sync_fan_messages(account: OFAccount, fan_id: str, db: AsyncSession):
-    """Sync all messages for one fan using cursor pagination (last_id)."""
+async def sync_fan_messages(account: OFAccount, fan_id: str, db: AsyncSession):
+    """Sync all messages for one fan using cursor pagination.
+
+    Pages are returned newest-first. We stop early when an entire page contains
+    no new messages, meaning the local DB is already up to date for that range.
+    Text content from the API contains HTML; we strip it before storing.
+    """
+    import re
     from urllib.parse import urlparse, parse_qs
-    last_id = None
+
+    cursor_id = None
+    last_seen_sent_at = datetime.now(timezone.utc)
+
     while True:
         try:
-            data = await of_api.get_chat_messages(account.of_user_id, fan_id, last_id=last_id)
+            data = await of_api.get_chat_messages(account.of_user_id, fan_id, cursor_id=cursor_id)
         except Exception as e:
             logger.warning(f"Could not fetch messages for fan {fan_id}: {e}")
             break
@@ -166,8 +175,12 @@ async def _sync_fan_messages(account: OFAccount, fan_id: str, db: AsyncSession):
         if not msgs:
             break
 
+        new_count = 0
         for m in msgs:
-            msg_id = str(m.get("id"))
+            msg_id = str(m.get("id") or "")
+            if not msg_id or msg_id == "None":
+                continue
+
             result = await db.execute(select(Message).where(Message.id == msg_id))
             if result.scalar_one_or_none():
                 continue
@@ -180,10 +193,9 @@ async def _sync_fan_messages(account: OFAccount, fan_id: str, db: AsyncSession):
                 except Exception:
                     pass
 
-            # isSentByMe is the reliable flag — the API sets it to true when the
-            # authenticated creator account sent the message.
             from_creator = bool(m.get("isSentByMe") or m.get("is_sent_by_me"))
-            content = m.get("text") or m.get("content") or m.get("message")
+            raw_text = m.get("text") or m.get("content") or m.get("message")
+            content = re.sub(r"<[^>]+>", "", raw_text).strip() if raw_text else None
 
             db.add(Message(
                 id=msg_id,
@@ -195,18 +207,41 @@ async def _sync_fan_messages(account: OFAccount, fan_id: str, db: AsyncSession):
                 sent_at=sent_at,
                 is_read=bool(m.get("isRead") or m.get("is_read") or False),
             ))
-            await db.execute(update(Fan).where(Fan.id == fan_id).values(last_message_at=sent_at))
+            last_seen_sent_at = sent_at
+            new_count += 1
 
-        await db.commit()
+        if new_count > 0:
+            await db.execute(update(Fan).where(Fan.id == fan_id).values(last_message_at=last_seen_sent_at))
+            await db.commit()
 
-        # Follow cursor to next page
-        next_page = data.get("_pagination", {}).get("next_page") if isinstance(data, dict) else None
-        if not next_page:
+        # No new messages on this page → we've reached already-synced history
+        if new_count == 0:
             break
-        last_id = parse_qs(urlparse(next_page).query).get("last_id", [None])[0]
-        if not last_id:
+
+        # Partial page means this was the last page (limit=100 is the max)
+        if len(msgs) < 100:
+            break
+
+        # Cursor param is `first_id` (oldest message id on current page)
+        next_page = (data.get("_pagination") or {}).get("next_page") if isinstance(data, dict) else None
+        if next_page:
+            cursor_id = parse_qs(urlparse(next_page).query).get("first_id", [None])[0]
+        else:
+            cursor_id = str(msgs[-1].get("id") or "")
+
+        if not cursor_id:
             break
         await asyncio.sleep(0.1)
+
+
+async def sync_all_messages(account: OFAccount, db: AsyncSession):
+    """Sync messages for every fan belonging to an account."""
+    result = await db.execute(select(Fan).where(Fan.account_id == account.id))
+    fans = result.scalars().all()
+    logger.info(f"Syncing messages for {len(fans)} fans of {account.username}")
+    for fan in fans:
+        await sync_fan_messages(account, fan.id, db)
+        await asyncio.sleep(0.2)
 
 
 async def ingest_webhook_message(

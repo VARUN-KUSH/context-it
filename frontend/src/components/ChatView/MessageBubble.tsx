@@ -20,7 +20,7 @@ interface MediaItem {
     squarePreview?: MediaFile
   }
   duration: number
-  videoSources: { '720'?: string | null; '240'?: string | null }
+  videoSources?: { '720'?: string | null; '240'?: string | null }
 }
 
 export interface Message {
@@ -49,7 +49,11 @@ function MediaAttachment({ media }: { media: MediaItem }) {
 
   // GIF stored as video, or regular video
   if (media.convertedToVideo || media.type === 'video') {
-    const src = media.videoSources['720'] ?? media.videoSources['240'] ?? null
+    const src =
+      media.videoSources?.['720'] ??
+      media.videoSources?.['240'] ??
+      media.files?.full?.url ??
+      null
     if (!src) return null
     return (
       <video

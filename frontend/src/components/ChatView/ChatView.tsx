@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
-import { getMessages, sendMessage, sendTypingIndicator } from '../../services/api'
+import { getMessages, sendMessage, sendTypingIndicator, refreshMediaUrls } from '../../services/api'
 import { useStore } from '../../store'
 import SuggestionBar from './SuggestionBar'
 import MessageBubble, { type Message } from './MessageBubble'
 import Toolbar from './Toolbar'
 import FanProfilePanel from '../FanProfile/FanProfilePanel'
+import { type VaultItem } from './VaultPicker'
 import toast from 'react-hot-toast'
-import { Loader2 } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -105,13 +106,14 @@ export default function ChatView() {
     setIsTypingToActiveFan,
   } = useStore()
 
-  const [messages, setMessages]       = useState<Message[]>([])
-  const [loading, setLoading]         = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore]         = useState(false)
-  const [inputText, setInputText]     = useState('')
-  const [sending, setSending]         = useState(false)
-  const [showProfile, setShowProfile] = useState(true)
+  const [messages, setMessages]             = useState<Message[]>([])
+  const [loading, setLoading]               = useState(false)
+  const [loadingMore, setLoadingMore]       = useState(false)
+  const [hasMore, setHasMore]               = useState(false)
+  const [inputText, setInputText]           = useState('')
+  const [sending, setSending]               = useState(false)
+  const [showProfile, setShowProfile]       = useState(true)
+  const [vaultAttachments, setVaultAttachments] = useState<VaultItem[]>([])
 
   const containerRef   = useRef<HTMLDivElement>(null)
   const bottomRef      = useRef<HTMLDivElement>(null)
@@ -159,6 +161,15 @@ export default function ChatView() {
       const res = await getMessages(activeFanId)
       setMessages(extractMessages(res.data))
       setHasMore(extractHasMore(res.data))
+      // Refresh media URLs in the background; patch fresh URLs into state in-place
+      refreshMediaUrls(activeFanId).then((r) => {
+        const updated = r.data?.updated
+        if (!updated?.length) return
+        const freshMap = new Map(updated.map((u) => [u.id, u.media_urls]))
+        setMessages((prev) =>
+          prev.map((m) => (freshMap.has(m.id) ? { ...m, media_urls: freshMap.get(m.id) as typeof m.media_urls } : m))
+        )
+      }).catch(() => {/* media refresh is best-effort */})
     } catch (err) {
       console.error('[loadMessages]', err)
     } finally {
@@ -259,6 +270,7 @@ export default function ChatView() {
     setMessages([])
     setInputText('')
     setHasMore(false)
+    setVaultAttachments([])
     if (activeFanId) loadMessages()
   }, [activeFanId, loadMessages])
 
@@ -273,14 +285,16 @@ export default function ChatView() {
   // ── Send ──────────────────────────────────────────────────────────────────
 
   const handleSend = async () => {
-    if (!inputText.trim() || !activeFanId || sending) return
+    if ((!inputText.trim() && vaultAttachments.length === 0) || !activeFanId || sending) return
     const text = inputText.trim()
+    const mediaIds = vaultAttachments.map(i => i.id)
     setInputText('')
+    setVaultAttachments([])
     setIsTypingToActiveFan(false)
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     setSending(true)
     try {
-      const res = await sendMessage(activeFanId, text)
+      const res = await sendMessage(activeFanId, text, undefined, mediaIds.length ? mediaIds : undefined)
       const sent: Message = res.data?.id ? res.data : (res.data?.message ?? res.data)
       setMessages(prev => [...prev, sent])
       requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }))
@@ -398,6 +412,29 @@ export default function ChatView() {
         {/* AI Suggestion Bar */}
         <SuggestionBar fanId={activeFanId} onSelect={(text) => setInputText(text)} />
 
+        {/* Vault attachment preview */}
+        {vaultAttachments.length > 0 && (
+          <div className="border-t border-[#1e1e1e] bg-[#0a0a0a] px-3 py-2 flex gap-2 overflow-x-auto">
+            {vaultAttachments.map(item => {
+              const thumb = (item.files?.thumb?.url || item.files?.squarePreview?.url || item.files?.preview?.url || item.thumb || item.thumbnail || item.src || '') as string
+              return (
+                <div key={item.id} className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[#1a1a1a]">
+                  {thumb
+                    ? <img src={thumb} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">{item.type || 'media'}</div>
+                  }
+                  <button
+                    onClick={() => setVaultAttachments(prev => prev.filter(v => v.id !== item.id))}
+                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center hover:bg-black"
+                  >
+                    <X size={8} className="text-white" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Text input */}
         <div className="border-t border-[#1e1e1e] bg-[#0f0f0f] px-3 py-2">
           <textarea
@@ -414,10 +451,16 @@ export default function ChatView() {
         <Toolbar
           fanId={activeFanId}
           accountId={activeAccount?.of_user_id || ''}
+          accountDbId={activeAccount?.id || 0}
           onSend={handleSend}
           sending={sending}
           hasText={!!inputText.trim()}
+          hasAttachments={vaultAttachments.length > 0}
           onEmojiSelect={(emoji) => setInputText((prev) => prev + emoji)}
+          onVaultAdd={(items) => setVaultAttachments(prev => {
+            const existing = new Set(prev.map(v => v.id))
+            return [...prev, ...items.filter(i => !existing.has(i.id))]
+          })}
         />
       </div>
 

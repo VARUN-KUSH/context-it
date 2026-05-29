@@ -66,7 +66,7 @@ export const deleteAccount = (id: number) => api.delete(`/accounts/${id}`)
 // ── Fans ──────────────────────────────────────────────────────────────────────
 export const getFans = (
   accountId: number,
-  params: { search?: string; offset?: number; limit?: number } = {},
+  params: { search?: string; offset?: number; limit?: number; cursor?: string } = {},
 ) => api.get('/fans/', { params: { account_id: accountId, ...params } })
 
 export const getFan = (fanId: string) => api.get(`/fans/${fanId}`)
@@ -91,11 +91,14 @@ export const getMessages = (
   params: { limit?: number; before_id?: string } = {},
 ) => api.get(`/messages/${fanId}`, { params: { limit: 50, ...params } })
 
-export const sendMessage = (fanId: string, content: string, price?: number) =>
-  api.post(`/messages/${fanId}/send`, { content, price })
+export const sendMessage = (fanId: string, content: string, price?: number, mediaIds?: number[]) =>
+  api.post(`/messages/${fanId}/send`, { content, price, media_ids: mediaIds?.length ? mediaIds : undefined })
 
 export const sendTypingIndicator = (fanId: string) =>
   api.post(`/messages/${fanId}/typing`)
+
+export const refreshMediaUrls = (fanId: string) =>
+  api.post<{ updated: Array<{ id: string; media_urls: unknown[] }> }>(`/messages/${fanId}/refresh-media`)
 
 export const getFanChats = (accountId: number) =>
   api.get('/fans/chats', { params: { account_id: accountId } })
@@ -111,5 +114,5 @@ export const markSuccessful = (suggestionId: number, resultNote?: string) =>
   })
 
 // ── Vault ─────────────────────────────────────────────────────────────────────
-export const getVault = (accountId: string) =>
-  api.get('/vault/', { params: { of_user_id: accountId } })
+export const getVaultMedia = (accountId: number, offset = 0, limit = 40) =>
+  api.get('/vault/', { params: { account_id: accountId, offset, limit } })

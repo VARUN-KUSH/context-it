@@ -97,13 +97,13 @@ async def get_chats(account_id: str, offset: int = 0, limit: int = 20) -> dict:
 
 
 async def get_chat_messages(
-    account_id: str, chat_id: str, cursor_id: Optional[str] = None, limit: int = 50
+    account_id: str, chat_id: str, cursor_id: Optional[str] = None, limit: int = 100
 ) -> dict:
     """GET /api/{account}/chats/{chat_id}/messages
     Default order=desc (newest first). Use `id` param to paginate to older messages."""
     params: dict = {"limit": limit}
     if cursor_id:
-        params["id"] = cursor_id  # `id` = last msg id from prev page (desc order)
+        params["first_id"] = cursor_id  # cursor: oldest msg id on previous page
     async with httpx.AsyncClient() as client:
         r = await client.get(
             f"{OFAPI_BASE_URL}/api/{account_id}/chats/{chat_id}/messages",
@@ -148,13 +148,37 @@ async def send_typing_indicator(account_id: str, chat_id: str) -> dict:
         return r.json()
 
 
-async def get_vault(account_id: str, offset: int = 0, limit: int = 20) -> dict:
-    """GET /api/{account}/vault — list vault media."""
+async def get_vault(account_id: str, offset: int = 0, limit: int = 100) -> dict:
+    """GET /api/{account}/media/vault — list vault media items."""
     async with httpx.AsyncClient() as client:
         r = await client.get(
-            f"{OFAPI_BASE_URL}/api/{account_id}/vault",
+            f"{OFAPI_BASE_URL}/api/{account_id}/media/vault",
             headers=_headers(),
             params={"offset": offset, "limit": limit},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+async def send_message_with_media(
+    account_id: str,
+    chat_id: str,
+    content: str,
+    price: Optional[float] = None,
+    media_ids: Optional[list] = None,
+) -> dict:
+    """POST /api/{account}/chats/{chat_id}/messages — send message, optionally with vault media."""
+    payload: dict = {"text": content}
+    if price:
+        payload["price"] = price
+    if media_ids:
+        payload["media"] = [{"id": mid, "type": "photo"} for mid in media_ids]
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            f"{OFAPI_BASE_URL}/api/{account_id}/chats/{chat_id}/messages",
+            headers=_headers(),
+            json=payload,
             timeout=30,
         )
         r.raise_for_status()

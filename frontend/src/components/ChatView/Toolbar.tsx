@@ -5,24 +5,37 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import EmojiPicker, { type EmojiClickData, Theme } from 'emoji-picker-react'
+import VaultPicker, { type VaultItem } from './VaultPicker'
 
 interface Props {
   fanId: string
   accountId: string
+  accountDbId: number
   onSend: () => void
   sending: boolean
   hasText: boolean
+  hasAttachments: boolean
   onEmojiSelect: (emoji: string) => void
+  onVaultAdd: (items: VaultItem[]) => void
 }
 
-export default function Toolbar({ fanId: _fanId, accountId: _accountId, onSend, sending, hasText, onEmojiSelect }: Props) {
+export default function Toolbar({
+  fanId: _fanId,
+  accountId: _accountId,
+  accountDbId,
+  onSend,
+  sending,
+  hasText,
+  hasAttachments,
+  onEmojiSelect,
+  onVaultAdd,
+}: Props) {
   const [showEmojis, setShowEmojis] = useState(false)
   const [showPriceTag, setShowPriceTag] = useState(false)
   const [showVault, setShowVault] = useState(false)
   const [price, setPrice] = useState('')
   const pickerRef = useRef<HTMLDivElement>(null)
 
-  // Close picker when clicking outside
   useEffect(() => {
     if (!showEmojis) return
     function handleClick(e: MouseEvent) {
@@ -38,9 +51,19 @@ export default function Toolbar({ fanId: _fanId, accountId: _accountId, onSend, 
     onEmojiSelect(data.emoji)
   }
 
+  if (showVault) {
+    return (
+      <VaultPicker
+        accountId={accountDbId}
+        onAdd={onVaultAdd}
+        onClose={() => setShowVault(false)}
+      />
+    )
+  }
+
   return (
     <div className="border-t border-[#1e1e1e] bg-[#0a0a0a] relative">
-      {/* Full emoji picker — floats above toolbar */}
+      {/* Emoji picker — floats above toolbar */}
       {showEmojis && (
         <div
           ref={pickerRef}
@@ -75,16 +98,6 @@ export default function Toolbar({ fanId: _fanId, accountId: _accountId, onSend, 
         </div>
       )}
 
-      {/* Vault modal (simplified) */}
-      {showVault && (
-        <div className="px-3 py-2 border-b border-[#1e1e1e] text-xs text-gray-500">
-          🔒 Vault — attach media coming soon
-          <button onClick={() => setShowVault(false)} className="ml-2 text-brand-400">
-            Close
-          </button>
-        </div>
-      )}
-
       {/* Main toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-2">
         <ToolBtn
@@ -112,8 +125,8 @@ export default function Toolbar({ fanId: _fanId, accountId: _accountId, onSend, 
         <ToolBtn
           icon={<Lock size={18} />}
           title="Vault"
-          active={showVault}
-          onClick={() => setShowVault(!showVault)}
+          active={false}
+          onClick={() => setShowVault(true)}
           accentColor="text-blue-400"
         />
 
@@ -122,10 +135,10 @@ export default function Toolbar({ fanId: _fanId, accountId: _accountId, onSend, 
         {/* SEND */}
         <button
           onClick={onSend}
-          disabled={!hasText || sending}
+          disabled={(!hasText && !hasAttachments) || sending}
           className={clsx(
             'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all',
-            hasText && !sending
+            (hasText || hasAttachments) && !sending
               ? 'bg-brand-600 hover:bg-brand-500 text-white'
               : 'bg-[#1a1a1a] text-gray-600 cursor-default'
           )}
