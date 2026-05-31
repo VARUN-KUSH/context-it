@@ -193,4 +193,20 @@ async def ofapi_webhook(
 async def _handle_message(data: dict, fan_id: str, from_creator: bool, of_account_id: str = ""):
     async with AsyncSessionLocal() as db:
         await ingest_webhook_message(data, fan_id, from_creator, db, of_account_id=of_account_id)
+
     await ws_manager.broadcast(_build_ws_event(data, fan_id, from_creator))
+
+    # Auto-generate fresh AI suggestions whenever the fan sends a message
+    if not from_creator and fan_id:
+        await _refresh_suggestions(fan_id)
+
+
+async def _refresh_suggestions(fan_id: str) -> None:
+    from services.suggestions_service import build_suggestions_for_fan
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await build_suggestions_for_fan(fan_id, db)
+        if result is not None:
+            await ws_manager.broadcast({"type": "suggestions.ready", "fan_id": fan_id})
+    except Exception as e:
+        logger.error("_refresh_suggestions failed for fan %s: %s", fan_id, e)

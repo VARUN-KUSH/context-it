@@ -19,6 +19,7 @@ fan_tags = Table(
 
 class SuggestionType(str, enum.Enum):
     flirty = "flirty"
+    connect = "connect"
     upsell = "upsell"
     reengage = "reengage"
 

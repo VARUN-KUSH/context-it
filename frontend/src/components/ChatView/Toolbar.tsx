@@ -5,34 +5,30 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import EmojiPicker, { type EmojiClickData, Theme } from 'emoji-picker-react'
-import VaultPicker, { type VaultItem } from './VaultPicker'
 
 interface Props {
   fanId: string
   accountId: string
-  accountDbId: number
   onSend: () => void
   sending: boolean
   hasText: boolean
   hasAttachments: boolean
   onEmojiSelect: (emoji: string) => void
-  onVaultAdd: (items: VaultItem[]) => void
+  onVaultOpen: () => void
 }
 
 export default function Toolbar({
   fanId: _fanId,
   accountId: _accountId,
-  accountDbId,
   onSend,
   sending,
   hasText,
   hasAttachments,
   onEmojiSelect,
-  onVaultAdd,
+  onVaultOpen,
 }: Props) {
   const [showEmojis, setShowEmojis] = useState(false)
   const [showPriceTag, setShowPriceTag] = useState(false)
-  const [showVault, setShowVault] = useState(false)
   const [price, setPrice] = useState('')
   const pickerRef = useRef<HTMLDivElement>(null)
 
@@ -51,18 +47,8 @@ export default function Toolbar({
     onEmojiSelect(data.emoji)
   }
 
-  if (showVault) {
-    return (
-      <VaultPicker
-        accountId={accountDbId}
-        onAdd={onVaultAdd}
-        onClose={() => setShowVault(false)}
-      />
-    )
-  }
-
   return (
-    <div className="border-t border-[#1e1e1e] bg-[#0a0a0a] relative">
+    <div className="border-t border-[#1e1e1e] bg-[#0a0a0a]">
       {/* Emoji picker — floats above toolbar */}
       {showEmojis && (
         <div
@@ -126,7 +112,7 @@ export default function Toolbar({
           icon={<Lock size={18} />}
           title="Vault"
           active={false}
-          onClick={() => setShowVault(true)}
+          onClick={onVaultOpen}
           accentColor="text-blue-400"
         />
 
@@ -158,11 +144,7 @@ export default function Toolbar({
 }
 
 function ToolBtn({
-  icon,
-  title,
-  onClick,
-  active,
-  accentColor,
+  icon, title, onClick, active, accentColor,
 }: {
   icon: React.ReactNode
   title: string

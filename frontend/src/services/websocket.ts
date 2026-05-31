@@ -66,6 +66,11 @@ function handleEvent(raw: string) {
   if (type === 'message.deleted' && event.message_id) {
     store.setDeletedMessageId(event.message_id, event.fan_id)
   }
+
+  // ── Suggestions ready ─────────────────────────────────────────────────────
+  if (type === 'suggestions.ready' && fan_id) {
+    store.setSuggestionsReady(fan_id)
+  }
 }
 
 export function connectWebSocket(token: string) {

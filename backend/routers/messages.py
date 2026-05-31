@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, or_, and_
 from database.database import get_db
 from database.models import Fan, Message, OFAccount, User
 from schemas.schemas import MessageOut, MessagesResponse, SendMessageRequest
@@ -46,11 +46,22 @@ async def get_messages(
 
     if before_id:
         ref_result = await db.execute(
-            select(Message.sent_at).where(Message.id == before_id)
+            select(Message.sent_at, Message.id).where(Message.id == before_id)
         )
-        ref_sent_at = ref_result.scalar_one_or_none()
-        if ref_sent_at:
-            stmt = stmt.where(Message.sent_at < ref_sent_at)
+        ref_row = ref_result.one_or_none()
+        if ref_row:
+            ref_sent_at, ref_id = ref_row
+            # Use (sent_at, id) tuple comparison to handle same-timestamp messages
+            # without missing any at the page boundary
+            stmt = stmt.where(
+                or_(
+                    Message.sent_at < ref_sent_at,
+                    and_(Message.sent_at == ref_sent_at, Message.id < ref_id),
+                )
+            )
+        else:
+            # Cursor not found — caller has a stale before_id; return nothing
+            return MessagesResponse(messages=[], has_more=False, syncing=False)
 
     result = await db.execute(stmt)
     rows = result.scalars().all()

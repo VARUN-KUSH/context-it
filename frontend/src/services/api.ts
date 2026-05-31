@@ -114,5 +114,11 @@ export const markSuccessful = (suggestionId: number, resultNote?: string) =>
   })
 
 // ── Vault ─────────────────────────────────────────────────────────────────────
-export const getVaultMedia = (accountId: number, offset = 0, limit = 40) =>
+export const getVaultMedia = (accountId: number, offset = 0, limit = 100) =>
   api.get('/vault/', { params: { account_id: accountId, offset, limit } })
+
+export const getVaultLists = (accountId: number) =>
+  api.get('/vault/lists', { params: { account_id: accountId } })
+
+export const getVaultList = (accountId: number, listId: number, offset = 0, limit = 100) =>
+  api.get(`/vault/lists/${listId}`, { params: { account_id: accountId, offset, limit } })

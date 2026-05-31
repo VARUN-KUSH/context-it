@@ -161,6 +161,49 @@ async def get_vault(account_id: str, offset: int = 0, limit: int = 100) -> dict:
         return r.json()
 
 
+async def download_media(account_id: str, cdn_url: str) -> tuple[bytes, str, str | None]:
+    """GET /api/{account}/media/download/{cdnUrl}
+    Returns (content_bytes, content_type, redirect_location).
+    If the CDN has the file cached the API returns a 302 — we follow the redirect.
+    """
+    import urllib.parse
+    encoded = urllib.parse.quote(cdn_url, safe="")
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        r = await client.get(
+            f"{OFAPI_BASE_URL}/api/{account_id}/media/download/{encoded}",
+            headers=_headers(),
+            timeout=30,
+        )
+        r.raise_for_status()
+        content_type = r.headers.get("content-type", "image/jpeg")
+        return r.content, content_type, str(r.url) if str(r.url) != f"{OFAPI_BASE_URL}/api/{account_id}/media/download/{encoded}" else None
+
+
+async def get_vault_lists(account_id: str) -> dict:
+    """GET /api/{account}/media/vault/lists — list vault categories."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{OFAPI_BASE_URL}/api/{account_id}/media/vault/lists",
+            headers=_headers(),
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+async def get_vault_list(account_id: str, list_id: int, offset: int = 0, limit: int = 100) -> dict:
+    """GET /api/{account}/media/vault/lists/{list_id} — paginated media for one vault list."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{OFAPI_BASE_URL}/api/{account_id}/media/vault/lists/{list_id}",
+            headers=_headers(),
+            params={"offset": offset, "limit": limit},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 async def send_message_with_media(
     account_id: str,
     chat_id: str,

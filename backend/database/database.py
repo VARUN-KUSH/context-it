@@ -26,14 +26,21 @@ async def get_db():
 
 
 async def init_db():
+    import sqlalchemy
     async with engine.begin() as conn:
         from database import models  # noqa
-        await conn.execute(
-            __import__("sqlalchemy").text(
-                "DO $$ BEGIN "
-                "CREATE TYPE suggestiontype AS ENUM ('flirty', 'upsell', 'reengage'); "
-                "EXCEPTION WHEN duplicate_object THEN NULL; "
-                "END $$;"
-            )
-        )
+        # Create enum type (no-op if already exists)
+        await conn.execute(sqlalchemy.text(
+            "DO $$ BEGIN "
+            "CREATE TYPE suggestiontype AS ENUM ('flirty', 'upsell', 'reengage'); "
+            "EXCEPTION WHEN duplicate_object THEN NULL; "
+            "END $$;"
+        ))
+        # Add 'connect' value if not already in enum
+        await conn.execute(sqlalchemy.text(
+            "DO $$ BEGIN "
+            "ALTER TYPE suggestiontype ADD VALUE IF NOT EXISTS 'connect'; "
+            "EXCEPTION WHEN others THEN NULL; "
+            "END $$;"
+        ))
         await conn.run_sync(Base.metadata.create_all)

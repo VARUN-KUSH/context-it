@@ -5,7 +5,7 @@ import SuggestionBar from './SuggestionBar'
 import MessageBubble, { type Message } from './MessageBubble'
 import Toolbar from './Toolbar'
 import FanProfilePanel from '../FanProfile/FanProfilePanel'
-import { type VaultItem } from './VaultPicker'
+import VaultPicker, { type VaultItem } from './VaultPicker'
 import toast from 'react-hot-toast'
 import { Loader2, X } from 'lucide-react'
 
@@ -114,6 +114,7 @@ export default function ChatView() {
   const [sending, setSending]               = useState(false)
   const [showProfile, setShowProfile]       = useState(true)
   const [vaultAttachments, setVaultAttachments] = useState<VaultItem[]>([])
+  const [showVault, setShowVault]           = useState(false)
 
   const containerRef   = useRef<HTMLDivElement>(null)
   const bottomRef      = useRef<HTMLDivElement>(null)
@@ -190,7 +191,10 @@ export default function ChatView() {
       const res = await getMessages(activeFanId, { before_id: oldestId })
       const older = extractMessages(res.data)
       setHasMore(extractHasMore(res.data))
-      setMessages(prev => [...older, ...prev])
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id))
+        return [...older.filter(m => !existingIds.has(m.id)), ...prev]
+      })
     } catch (err) {
       restoreScrollRef.current = null
       console.error('[loadMore]', err)
@@ -270,6 +274,10 @@ export default function ChatView() {
     setMessages([])
     setInputText('')
     setHasMore(false)
+    // Reset refs synchronously so stale values don't trigger loadMore before
+    // the async state effects fire
+    hasMoreRef.current = false
+    messagesRef.current = []
     setVaultAttachments([])
     if (activeFanId) loadMessages()
   }, [activeFanId, loadMessages])
@@ -287,7 +295,7 @@ export default function ChatView() {
   const handleSend = async () => {
     if ((!inputText.trim() && vaultAttachments.length === 0) || !activeFanId || sending) return
     const text = inputText.trim()
-    const mediaIds = vaultAttachments.map(i => i.id)
+    const mediaIds = vaultAttachments.map(i => i.id).filter((id): id is number => id != null)
     setInputText('')
     setVaultAttachments([])
     setIsTypingToActiveFan(false)
@@ -296,7 +304,7 @@ export default function ChatView() {
     try {
       const res = await sendMessage(activeFanId, text, undefined, mediaIds.length ? mediaIds : undefined)
       const sent: Message = res.data?.id ? res.data : (res.data?.message ?? res.data)
-      setMessages(prev => [...prev, sent])
+      setMessages(prev => prev.some(m => m.id === sent.id) ? prev : [...prev, sent])
       requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }))
     } catch (_) {
       toast.error('Failed to send message')
@@ -348,8 +356,8 @@ export default function ChatView() {
 
   return (
     <div className="flex flex-1 min-h-0">
-      {/* Chat column */}
-      <div className="flex flex-col flex-1 min-w-0">
+      {/* Chat column — relative so VaultPicker absolute overlay fills this exactly */}
+      <div className="flex flex-col flex-1 min-w-0 relative">
 
         {/* ── Chat header ── */}
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[#1e1e1e] bg-[#0d0d0d] shrink-0">
@@ -451,17 +459,25 @@ export default function ChatView() {
         <Toolbar
           fanId={activeFanId}
           accountId={activeAccount?.of_user_id || ''}
-          accountDbId={activeAccount?.id || 0}
           onSend={handleSend}
           sending={sending}
           hasText={!!inputText.trim()}
           hasAttachments={vaultAttachments.length > 0}
           onEmojiSelect={(emoji) => setInputText((prev) => prev + emoji)}
-          onVaultAdd={(items) => setVaultAttachments(prev => {
-            const existing = new Set(prev.map(v => v.id))
-            return [...prev, ...items.filter(i => !existing.has(i.id))]
-          })}
+          onVaultOpen={() => setShowVault(true)}
         />
+
+        {/* Vault picker — absolute overlay filling the chat column */}
+        {showVault && activeAccount && (
+          <VaultPicker
+            accountId={activeAccount.id}
+            onAdd={(items) => setVaultAttachments(prev => {
+              const existing = new Set(prev.map(v => v.id))
+              return [...prev, ...items.filter(i => !existing.has(i.id))]
+            })}
+            onClose={() => setShowVault(false)}
+          />
+        )}
       </div>
 
       {/* Fan profile sidebar */}

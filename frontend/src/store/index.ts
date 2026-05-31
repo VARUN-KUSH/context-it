@@ -40,6 +40,7 @@ interface AppState {
   lastWsMessage: WsMessage | null
   lastDeletedMessageId: string | null
   lastDeletedFanId: string | undefined
+  suggestionsReadyFanId: string | null
   setUser: (u: User | null) => void
   setAccounts: (a: Account[]) => void
   setActiveAccount: (id: number) => void
@@ -49,6 +50,7 @@ interface AppState {
   setFanOnline: (fanId: string, online: boolean) => void
   setLastWsMessage: (msg: WsMessage) => void
   setDeletedMessageId: (msgId: string, fanId?: string) => void
+  setSuggestionsReady: (fanId: string) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -64,6 +66,7 @@ export const useStore = create<AppState>((set) => ({
   lastWsMessage: null,
   lastDeletedMessageId: null,
   lastDeletedFanId: undefined,
+  suggestionsReadyFanId: null,
   setUser: (user) => set({ user }),
   setAccounts: (accounts) => set({ accounts }),
   setActiveAccount: (id) => set({ activeAccountId: id, activeFanId: null, activeFanName: null, activeFanAvatar: null }),
@@ -81,4 +84,5 @@ export const useStore = create<AppState>((set) => ({
   })),
   setLastWsMessage: (msg) => set({ lastWsMessage: msg }),
   setDeletedMessageId: (msgId, fanId) => set({ lastDeletedMessageId: msgId, lastDeletedFanId: fanId }),
+  setSuggestionsReady: (fanId) => set({ suggestionsReadyFanId: fanId }),
 }))

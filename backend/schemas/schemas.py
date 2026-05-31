@@ -6,6 +6,7 @@ from enum import Enum
 
 class SuggestionType(str, Enum):
     flirty = "flirty"
+    connect = "connect"
     upsell = "upsell"
     reengage = "reengage"
 
@@ -144,6 +145,7 @@ class SuggestionOut(BaseModel):
 
 class SuggestionsResponse(BaseModel):
     flirty: Optional[SuggestionOut] = None
+    connect: Optional[SuggestionOut] = None
     upsell: Optional[SuggestionOut] = None
     reengage: Optional[SuggestionOut] = None
 
